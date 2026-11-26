@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
-"""Draw the news-image-20261125 entry v2: a one-page newspaper summary of
+"""Draw the news-image-20261125 entry v3: a one-page newspaper summary of
 Wednesday 25 November 2026, rebuilt to the top entries' pattern:
 giant serif date, three illustrated top stories, region bar, KPI row,
 UTC timeline, numbered featured grid, world map, numbered list of all
 50 stories, DATE CHECK footer. All text drawn with PIL (crisp, no
 garbled AI text). Output: entry.png, 1024x1024, under 1 MiB.
+
+v3 fixes v2's 7 verified factual errors (wrong Wall Street closes, wrong
+dates, missing US Q3 GDP 4.3%) and its layout bugs (featured #8 overflow,
+cryptic illustrations, clustered map pins, empty band above footer,
+body text too light). See news-2026-11-25-v3.md.
 """
 from PIL import Image, ImageDraw, ImageFont
 import os
@@ -14,7 +19,7 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "entry.png")
 
 PAPER = (247, 243, 232)
 INK = (17, 17, 17)
-MUTED = (90, 86, 76)
+MUTED = (74, 70, 62)
 RED = (176, 42, 30)
 NAVY = (20, 45, 90)
 CREAM2 = (238, 231, 214)
@@ -86,7 +91,7 @@ def center(text, fnt, y, fill):
 center("THE WORLD IN ONE DAY", F_MAST, 12, INK)
 d.line([(32, 40), (992, 40)], fill=RED, width=3)
 center("Wednesday 25 November 2026", F_DATE, 46, INK)
-sub = "US tariffs up to 20%  ·  Kospi -6.2%  ·  Pakistan's first astronaut docks at Tiangong"
+sub = "US tariffs up to 20%  ·  Kospi -6.2%  ·  US GDP 4.3%  ·  Pakistan's first astronaut docks at Tiangong"
 try:
     center(sub, F_SUB, 106, RED)
 except Exception:
@@ -97,13 +102,13 @@ REGIONS = [
     ("N. AMERICA", 11, (20, 45, 90)),
     ("LATIN AM.", 1, (30, 120, 70)),
     ("EUROPE", 11, (140, 40, 120)),
-    ("MID. EAST", 7, (176, 42, 30)),
+    ("MID. EAST", 9, (176, 42, 30)),
     ("N. AFRICA", 3, (200, 120, 20)),
-    ("SUB-SAH. AFR.", 3, (120, 80, 20)),
+    ("SUB-SAH. AFR.", 2, (120, 80, 20)),
     ("SOUTH ASIA", 1, (0, 130, 130)),
-    ("EAST & SE ASIA", 5, (30, 80, 160)),
+    ("EAST & SE ASIA", 6, (30, 80, 160)),
     ("OCEANIA", 2, (90, 60, 140)),
-    ("GLOBAL", 6, (80, 80, 80)),
+    ("GLOBAL", 4, (80, 80, 80)),
 ]
 bx, bw, by = 32, 96, 132
 for i, (name, count, color) in enumerate(REGIONS):
@@ -120,7 +125,7 @@ KPI = [
     ("-6.2%", "Kospi close"),
     ("+26%", "UK Ofgem energy cap"),
     ("31", "killed in Cairo tanker fire"),
-    ("9", "dead in Bogor gold mine"),
+    ("4.3%", "US Q3 GDP growth"),
     ("1st", "Pakistan astronaut in orbit"),
 ]
 kx = 32
@@ -135,7 +140,7 @@ d.line([(32, 220), (992, 220)], fill=LIGHT_RULE, width=2)
 # ---------- UTC timeline ----------
 d.rectangle([32, 226, 992, 256], fill=NAVY)
 tl1 = "THE DAY IN UTC   00:18 Shenzhou-24 lifts  ·  03:56 Tiangong docks  ·  05:30 Taiex -4.8%  ·  06:30 Kospi -6.2%"
-tl2 = "07:00 Ofgem cap +26%  ·  08:35 Crew enters Tiangong  ·  13:30 US Q3 GDP 4.3%  ·  21:00 Dow tops 50,000"
+tl2 = "06:35 Crew enters Tiangong  ·  07:00 Ofgem cap +26%  ·  13:30 US Q3 GDP 4.3%  ·  21:00 Dow closes at record 50,183"
 for i, tl in enumerate((tl1, tl2)):
     tw = d.textlength(tl, font=F_TL)
     d.text(((W - tw) / 2, 230 + i * 13), tl, font=F_TL, fill=(255, 255, 255))
@@ -143,15 +148,32 @@ for i, tl in enumerate((tl1, tl2)):
 # ---------- flat illustrations ----------
 def draw_ship(x, y, w, h):
     d.rectangle([x, y, x + w, y + h], fill=(30, 80, 140))
-    d.rectangle([x, y + h - 26, x + w, y + h], fill=(20, 60, 110))
-    for i, c in enumerate([(200, 60, 50), (240, 180, 40), (60, 160, 90)]):
-        d.rectangle([x + 14 + i * 66, y + 22, x + 14 + i * 66 + 56, y + 56], fill=c)
-        d.rectangle([x + 14 + i * 66, y + 22, x + 14 + i * 66 + 56, y + 56], outline=(255, 255, 255), width=1)
-    d.polygon([(x + 14, y + h - 26), (x + w - 14, y + h - 26), (x + w - 40, y + h - 4), (x + 40, y + h - 4)], fill=(17, 17, 17))
-    d.rectangle([x + w - 104, y + 8, x + w - 8, y + 32], outline=(255, 60, 40), width=3)
+    # stacked containers: 7 columns x 2 rows
+    cols = [(200, 60, 50), (240, 180, 40), (60, 160, 90), (50, 110, 200)]
+    for r in range(2):
+        for i in range(7):
+            cx = x + 14 + i * 40
+            cy = y + 30 + r * 18
+            d.rectangle([cx, cy, cx + 36, cy + 16], fill=cols[(i + r) % 4],
+                        outline=(255, 255, 255), width=1)
+    # water band with wave arcs
+    d.rectangle([x, y + h - 20, x + w, y + h], fill=(20, 60, 110))
+    for ax in (x + 30, x + 130, x + 210):
+        d.arc([ax, y + h - 16, ax + 60, y + h - 2], 180, 360,
+              fill=(140, 190, 235), width=2)
+    # black hull with bow taper + red waterline stripe
+    d.rectangle([x + 10, y + h - 26, x + w - 10, y + h - 22], fill=(200, 40, 30))
+    d.polygon([(x + 8, y + h - 22), (x + w - 8, y + h - 22),
+               (x + w - 34, y + h - 4), (x + 34, y + h - 4)], fill=(17, 17, 17))
+    # red funnel + white bridge tower with 3 dark windows
+    d.rectangle([x + w - 64, y + 10, x + w - 50, y + 28], fill=(200, 40, 30))
+    d.rectangle([x + w - 46, y + 6, x + w - 10, y + 28], fill=(255, 255, 255))
+    for wx in (x + w - 42, x + w - 32, x + w - 22):
+        d.rectangle([wx, y + 10, wx + 8, y + 18], fill=(20, 40, 70))
+    d.rectangle([x + 8, y + 6, x + 104, y + 30], outline=(255, 60, 40), width=3)
     st = "UP TO 20%"
     sw = d.textlength(st, font=F_TAG)
-    d.text((x + w - 104 + (96 - sw) / 2, y + 12), st, font=F_TAG, fill=(255, 80, 60))
+    d.text((x + 8 + (96 - sw) / 2, y + 10), st, font=F_TAG, fill=(255, 80, 60))
 
 
 def draw_chart(x, y, w, h):
@@ -173,20 +195,32 @@ def draw_station(x, y, w, h):
         for sy in range(y + 6, y + 34, 14):
             if (sx * 7 + sy * 13) % 29 < 6:
                 d.ellipse([sx, sy, sx + 2, sy + 2], fill=(255, 255, 255))
-    d.rectangle([x + 70, y + 44, x + 110, y + 58], fill=(40, 90, 180))
-    d.rectangle([x + 150, y + 44, x + 190, y + 58], fill=(40, 90, 180))
-    d.rectangle([x + 112, y + 40, x + 148, y + 62], fill=(230, 230, 230))
-    d.rectangle([x + 118, y + 30, x + 142, y + 40], fill=(200, 200, 200))
-    d.rectangle([x + 14, y + 66, x + 34, y + 80], fill=(20, 120, 70))
-    d.text((x + 17, y + 68), "PK", font=F_TAG, fill=(255, 255, 255))
-    d.rectangle([x + 40, y + 66, x + 60, y + 80], fill=(200, 40, 30))
-    d.text((x + 43, y + 68), "CN", font=F_TAG, fill=(255, 255, 255))
-    d.ellipse([x + w - 52, y + 8, x + w - 16, y + 44], fill=(30, 90, 160), outline=(90, 160, 220), width=2)
+    # blue Earth arc along the bottom (two concentric arcs, kept inside panel)
+    d.arc([x + 20, y + h - 40, x + w - 20, y + h + 40], 200, 340,
+          fill=(90, 160, 220), width=6)
+    d.arc([x + 20, y + h - 30, x + w - 20, y + h + 30], 200, 340,
+          fill=(30, 90, 160), width=10)
+    # two wide blue solar panels left/right of a larger white central module
+    d.rectangle([x + 16, y + 40, x + 96, y + 58], fill=(40, 90, 180),
+                outline=(120, 170, 230), width=1)
+    d.rectangle([x + 208, y + 40, x + 288, y + 58], fill=(40, 90, 180),
+                outline=(120, 170, 230), width=1)
+    d.rectangle([x + 112, y + 30, x + 192, y + 66], fill=(230, 230, 230))
+    d.rectangle([x + 130, y + 20, x + 174, y + 30], fill=(200, 200, 200))
+    # docked Shenzhou capsule (cylinder + cone) under the module
+    d.rectangle([x + 138, y + 66, x + 166, y + 82], fill=(220, 220, 220))
+    d.polygon([(x + 138, y + 82), (x + 166, y + 82), (x + 152, y + 90)],
+              fill=(200, 200, 200))
+    # PK / CN tags, top-left
+    d.rectangle([x + 10, y + 8, x + 30, y + 22], fill=(20, 120, 70))
+    d.text((x + 13, y + 10), "PK", font=F_TAG, fill=(255, 255, 255))
+    d.rectangle([x + 34, y + 8, x + 54, y + 22], fill=(200, 40, 30))
+    d.text((x + 37, y + 10), "CN", font=F_TAG, fill=(255, 255, 255))
 
 
 BIG = [
     ("ship", "WASHINGTON · TRADE · OFFICIAL",
-     "US proposes tariffs of up to 20% on EU, China and 12 more",
+     "US tariffs hit 14 economies; China up to 20%",
      "Fourteen economies in the plan; Vietnam faces up to 35%.",
      "WHY IT MATTERS: the biggest US tariff move of the year hits world trade."),
     ("chart", "SEOUL · MARKETS · OFFICIAL",
@@ -228,7 +262,7 @@ FEATURED = [
     (5, "SAUDI ARABIA · WAR", "Houthis strike refinery and Riyadh tower", "Fires at Ras Tanura; 11 injured."),
     (6, "UKRAINE · WAR", "Russian strike kills 2 in Odesa region", "Three injured, incl. a child."),
     (7, "LONDON · ECONOMY", "UK energy price cap rises 26% to £2,166", "Ofgem lifts the household cap."),
-    (8, "PACIFIC · DIPLOMACY", "Solomon Islands–Australia treaty bars bases", "No foreign military base allowed."),
+    (8, "PACIFIC · DIPLOMACY", "Solomon Islands treaty bars bases", "No foreign military base allowed."),
     (9, "DHAKA · LABOUR", "Bangladesh lifts garment wage 36% to $139", "Minimum wage after protests."),
     (10, "CAIRO · DISASTER", "Tanker fire kills 31 on Cairo highway", "Blaze after a fuel tanker crash."),
     (11, "GAZA · WAR", "Israel kills Hamas security chief", "Col. Abuelouf dies with family."),
@@ -256,7 +290,7 @@ for i, (num, tag, head, body) in enumerate(FEATURED):
 d.line([(32, 646), (992, 646)], fill=LIGHT_RULE, width=2)
 
 # ---------- world map ----------
-MAP_X0, MAP_Y0, MAP_W, MAP_H = 32, 668, 268, 176
+MAP_X0, MAP_Y0, MAP_W, MAP_H = 32, 668, 268, 196
 d.text((32, 652), "WHERE IT HAPPENED", font=F_SEC, fill=INK)
 
 
@@ -297,8 +331,8 @@ for poly in CONTINENTS:
     d.polygon([proj(lon, lat) for lon, lat in poly], fill=MAP_LAND, outline=MAP_LINE)
 
 PINS = [
-    (4, 57, 26), (5, 47, 25), (6, 31, 46), (7, 0, 51), (8, 160, -9),
-    (9, 90, 24), (10, 31, 30), (11, 34, 31), (12, 18, -34), (13, -75, 10),
+    (4, 59, 27), (5, 47, 23), (6, 31, 46), (7, 0, 51), (8, 160, -9),
+    (9, 90, 24), (10, 30, 29), (11, 35, 33), (12, 18, -34), (13, -75, 10),
 ]
 for num, lon, lat in PINS:
     px, py = proj(lon, lat)
@@ -306,7 +340,7 @@ for num, lon, lat in PINS:
     ns = str(num)
     nw = d.textlength(ns, font=F_NUM)
     d.text((px - nw / 2, py - 6), ns, font=F_NUM, fill=(255, 255, 255))
-d.text((32, 850), "Pins = story numbers 4–13", font=F_FOOT, fill=MUTED)
+d.text((32, 872), "Pins = story numbers 4–13", font=F_FOOT, fill=MUTED)
 
 # ---------- also list 14-50 ----------
 LISTED = [
@@ -323,24 +357,24 @@ LISTED = [
     (24, "Drones hit Samara oil refinery"),
     (25, "Ukraine sinks Russian warship"),
     (26, "Two Libyan officers die in attack"),
-    (27, "Sudan: RSF strikes kill 19 civilians"),
+    (27, "Iran offers to reopen Hormuz in 48 hours"),
     (28, "CAS restores Senegal AFCON title"),
     (29, "N. Korea expels Swiss diplomat"),
     (30, "Bogor mine floods; 9 dead, 17 trapped"),
     (31, "Huawei convicted in US court"),
     (32, "Australia: Labor-Greens tax deal"),
-    (33, "Wall Street slides: S&P -2.2%"),
+    (33, "Dow record 50,183; S&P -0.3%"),
     (34, "PCE inflation 3.8%, core 3.3%"),
-    (35, "Nvidia leads sell-off"),
+    (35, "US GDP grows 4.3% in Q3"),
     (36, "CIA and ODNI hit by cyber breach"),
     (37, "DOJ charges 800+ in scam crackdown"),
-    (38, "US Army detonates 5 tons in Iowa"),
+    (38, "Consumer confidence jumps to 103.3"),
     (39, "California record tides flood roads"),
     (40, "Microsoft 'Code Red' after outage"),
-    (41, "AI agents hack university server"),
+    (41, "OpenAI, Anthropic staff warn on AI risk"),
     (42, "Anthropic shares below IPO price"),
-    (43, "Roche drug Wilserdly FDA-approved"),
-    (44, "WHO: 3 bird flu cases, 1 death"),
+    (43, "Samsung market cap below 1,000tn"),
+    (44, "US urges citizens to leave Iran"),
     (45, "UN: cuts threaten progress vs HIV"),
     (46, "Homo erectus lived with Denisovans"),
     (47, "3D-MINSTED tracks single proteins"),
@@ -368,7 +402,7 @@ credit = "DRAWN BY AN AI AGENT FOR MAKE.FUN"
 cw = d.textlength(credit, font=F_FOOT)
 d.text((992 - 12 - cw, fy + 4), credit, font=F_FOOT, fill=MUTED)
 d.text((44, fy + 20),
-       "All 50 stories first reported Wednesday 25 November 2026. Sources: Reuters, BBC, wires.",
+       "Stories first reported Wednesday 25 November 2026. Sources: Reuters, BBC, wires.",
        font=F_FOOT, fill=INK)
 
 img.save(OUT, optimize=True)
